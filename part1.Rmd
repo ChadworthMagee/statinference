@@ -1,0 +1,54 @@
+---
+title: "Simulations of Exponential Distribution"
+output: pdf_document
+---
+
+# Simulation exercises
+Simulate the Exponential Distribution (rexp), lambda=0.2, nosim=1000, n=40. This code will store the mean and variance as columns in the rexpDF data frame. It also calculates "running" values for each of those across the 1000 simulations.
+```{r, echo=TRUE}
+lambda <- 0.2; nosim <- 1000; n <- 40
+rexpDF <- data.frame(idx=numeric(nosim), mean=numeric(nosim), var=numeric(nosim),
+                     runningm=numeric(nosim), runningv=numeric(nosim))
+for(i in 1:nosim) {
+  lhats <- rexp(n, rate=lambda)
+  rexpDF$idx[i] <- i; rexpDF$mean[i] <- mean(lhats); rexpDF$var[i] <- var(lhats)
+  if (i > 1) {
+    rexpDF$runningm[i] <- (rexpDF$runningm[i-1] * (i-1) + mean(lhats)) / i
+    rexpDF$runningv[i] <- (rexpDF$runningv[i-1] * (i-1) + var(lhats)) / i
+  } else {
+    rexpDF$runningm[i] <- mean(lhats); rexpDF$runningv[i] <- var(lhats)
+  }
+}
+```
+
+### Where is the distribution centered?
+Over the course of several simulations the "running mean" (`r mean(rexpDF$mean)`) trends towards 1/lambda (`r 1/lambda`).
+
+```{r, echo=FALSE}
+library(ggplot2)
+ggplot(rexpDF, aes(x=idx, y=runningm)) + geom_point() + geom_hline(yintercept=1/lambda)
+```
+
+### How variable is the distribution?
+Similarly, the variance will trend towards (1/lambda)^2 (`r (1/lambda)^2`). You can compare this with the actual variance from simulation (`r mean(rexpDF$var)`). If you take the square root of the variance (standard deviation) you'll see it is trending towards 1/lambda (`r sqrt(mean(rexpDF$var))`).
+
+### Show that the distribution is approximately normal
+By plotting as a histogram you can see that it appears have a normal distribution. First we have to normalize by recentering around 0 and dividing to get a variance of 1.
+```{r, echo=FALSE}
+normalMeans <- data.frame(x=numeric(nosim))
+normalMeans$x <- (rexpDF$mean - (1/lambda)) / ((1/lambda)/sqrt(n))
+```
+
+Now we can plot the histogram and compare with a normal distribution (red). You can see the histogram correlates with the normal distribution plot.
+```{r, echo=TRUE}
+g3 <- ggplot(normalMeans, aes(x=x))
+g3 <- g3 + geom_histogram(binwidth=.2, color="black", fill="blue", aes(y=..density..))
+g3 + stat_function(fun=dnorm, color="red", size=2)
+```
+
+### Evaluate the coverage of the confidence interval for 1/lambda
+The coverage of the confidence interval of 95% is calculated as:
+```{r, echo=TRUE}
+m <- mean(rexpDF$mean); sd <- sqrt(mean(rexpDF$var))
+m + c(-1, 1) * 1.96 * sd / sqrt(n)
+```
